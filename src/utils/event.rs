@@ -1,5 +1,6 @@
-use std::io;
-use std::sync::mpsc;
+use std::io::{self, Read};
+use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc::{self, SendError, Sender};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -12,6 +13,7 @@ use termion::input::TermRead;
 
 pub enum Event<I> {
     Input(I),
+    Message(String),
     Tick,
 }
 
@@ -22,6 +24,7 @@ pub struct Events {
     input_handle: thread::JoinHandle<()>,
     ignore_exit_key: Arc<AtomicBool>,
     tick_handle: thread::JoinHandle<()>,
+    req_handle: thread::JoinHandle<()>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,6 +69,7 @@ impl Events {
             })
         };
         let tick_handle = {
+            let tx = tx.clone();
             thread::spawn(move || loop {
                 if tx.send(Event::Tick).is_err() {
                     break;
@@ -73,11 +77,26 @@ impl Events {
                 thread::sleep(config.tick_rate);
             })
         };
+
+        let req_handle = {
+            let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+            thread::spawn(move || {
+                for stream in listener.incoming() {
+                    let stream = stream.unwrap();
+
+                    if handle_connection(stream, tx.clone()).is_err() {
+                        break;
+                    }
+                }
+            })
+        };
+
         Events {
             rx,
             ignore_exit_key,
             input_handle,
             tick_handle,
+            req_handle,
         }
     }
 
@@ -92,4 +111,18 @@ impl Events {
     pub fn enable_exit_key(&mut self) {
         self.ignore_exit_key.store(false, Ordering::Relaxed);
     }
+}
+
+fn handle_connection(
+    mut stream: TcpStream,
+    tx: Sender<Event<Key>>,
+) -> Result<(), SendError<Event<Key>>> {
+    let mut buffer = [0; 1024];
+
+    stream.read(&mut buffer).unwrap();
+    let s = String::from_utf8_lossy(&buffer[..]).to_string();
+    tx.send(Event::Message(s))?;
+
+    // println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
+    Ok(())
 }

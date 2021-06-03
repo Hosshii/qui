@@ -74,15 +74,31 @@ where
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut state = self.state;
+        self.terminal.draw(|f| ui::draw_all(f, &mut state, ""))?;
+        let mut before_size = self.terminal.size()?;
+
+        let mut msg = "".to_owned();
         loop {
-            let mut state = self.state;
-            self.terminal.draw(|f| ui::draw(f, &mut state))?;
+            // let mut state = self.state;
+            if before_size != self.terminal.size()? {
+                self.terminal.draw(|f| ui::draw_all(f, &mut state, &msg))?;
+            }
+            // これを下に動かすとサイズが変わらなくなる
+            before_size = self.terminal.size()?;
 
             match self.events.next()? {
-                Event::Input(key) => self.on_key(key),
-
+                Event::Input(key) => {
+                    self.on_key(key);
+                    // self.terminal.draw(|f| ui::draw(f, &mut state))?;
+                }
                 Event::Tick => {
                     // todo!()
+                    // self.terminal.draw(|f| ui::draw(f, &mut state))?;
+                }
+                Event::Message(s) => {
+                    self.terminal.draw(|f| ui::draw_text(f, &mut state, &s))?;
+                    msg = s;
                 }
             }
 
