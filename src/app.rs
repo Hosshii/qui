@@ -77,8 +77,8 @@ where
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut state = &mut self.state;
-        self.terminal.draw(|f| ui::draw_all(f, &mut state, ""))?;
+        let state = &mut self.state;
+        self.terminal.draw(|f| ui::draw_all(f, &state, ""))?;
         let mut before_size = self.terminal.size()?;
 
         let mut msg = "".to_owned();
@@ -100,8 +100,8 @@ where
                     // self.terminal.draw(|f| ui::draw(f, &mut state))?;
                 }
                 Event::Message(s) => {
-                    let mut state = &mut self.state;
-                    self.terminal.draw(|f| ui::draw_all(f, &mut state, &s))?;
+                    let state = &mut self.state;
+                    self.terminal.draw(|f| ui::draw_all(f, &state, &s))?;
                     msg = s;
                 }
             }
@@ -123,8 +123,8 @@ where
 
     fn on_size_change(&mut self, msg: &str) -> std::io::Result<()> {
         self.state.frame = self.terminal.size()?;
-        let mut state = &mut self.state;
-        self.terminal.draw(|f| ui::draw_all(f, &mut state, &msg))?;
+        let state = &mut self.state;
+        self.terminal.draw(|f| ui::draw_all(f, &state, &msg))?;
         Ok(())
     }
 }
@@ -134,8 +134,8 @@ pub struct WidgetState {
     msg_state: Vec<MessageState>,
 }
 
-impl WidgetState {
-    pub fn new() -> Self {
+impl Default for WidgetState {
+    fn default() -> Self {
         Self {
             selected: 0,
             msg_state: Vec::new(),

@@ -10,12 +10,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = TermionBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
 
-    let events = Events::new();
+    let events = Events::default();
     let mut app = App::new(events, terminal);
 
-    match app.run() {
-        Err(e) => eprintln!("{}", e),
-        Ok(_) => {}
+    if let Err(e) = app.run() {
+        eprintln!("{}", e);
     }
 
     Ok(())
