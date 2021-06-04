@@ -119,7 +119,7 @@ fn handle_connection(
 ) -> Result<(), SendError<Event<Key>>> {
     let mut buffer = [0; 1024];
 
-    stream.read(&mut buffer).unwrap();
+    let _ = stream.read(&mut buffer).unwrap();
     let s = String::from_utf8_lossy(&buffer[..]).to_string();
     tx.send(Event::Message(s))?;
 

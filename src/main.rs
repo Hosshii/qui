@@ -6,7 +6,7 @@ use tui::{backend::TermionBackend, Terminal};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
-    // let stdout = AlternateScreen::from(stdout);
+    let stdout = AlternateScreen::from(stdout);
     let backend = TermionBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
 

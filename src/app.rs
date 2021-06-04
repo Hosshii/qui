@@ -1,5 +1,5 @@
 use termion::event::Key;
-use tui::{backend::Backend, Terminal};
+use tui::{backend::Backend, layout::Rect, Terminal};
 
 use crate::{
     ui,
@@ -7,7 +7,7 @@ use crate::{
 };
 
 const MAX_CHANNEL_WINDOW_SIZE: usize = 5;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum ActiveBlock {
     Help,
     Channel([u8; MAX_CHANNEL_WINDOW_SIZE]),
@@ -15,19 +15,21 @@ enum ActiveBlock {
     Empty,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AppState {
     active_block: ActiveBlock,
     key: Key,
     should_quit: bool,
+    pub frame: Rect,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(frame: Rect) -> Self {
         Self {
             active_block: ActiveBlock::Empty,
             key: Key::Null,
             should_quit: false,
+            frame,
         }
     }
 
@@ -66,24 +68,25 @@ where
     B: Backend,
 {
     pub fn new(events: Events, terminal: Terminal<B>) -> Self {
+        let s = terminal.size().expect("get size err");
         Self {
             events,
             terminal,
-            state: AppState::new(),
+            state: AppState::new(s),
         }
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut state = self.state;
+        let mut state = &mut self.state;
         self.terminal.draw(|f| ui::draw_all(f, &mut state, ""))?;
         let mut before_size = self.terminal.size()?;
 
         let mut msg = "".to_owned();
         loop {
-            // let mut state = self.state;
             if before_size != self.terminal.size()? {
-                self.terminal.draw(|f| ui::draw_all(f, &mut state, &msg))?;
+                self.on_size_change(&msg)?;
             }
+
             // これを下に動かすとサイズが変わらなくなる
             before_size = self.terminal.size()?;
 
@@ -97,7 +100,8 @@ where
                     // self.terminal.draw(|f| ui::draw(f, &mut state))?;
                 }
                 Event::Message(s) => {
-                    self.terminal.draw(|f| ui::draw_text(f, &mut state, &s))?;
+                    let mut state = &mut self.state;
+                    self.terminal.draw(|f| ui::draw_all(f, &mut state, &s))?;
                     msg = s;
                 }
             }
@@ -115,6 +119,13 @@ where
 
     fn should_quit(&self) -> bool {
         self.state.should_quit
+    }
+
+    fn on_size_change(&mut self, msg: &str) -> std::io::Result<()> {
+        self.state.frame = self.terminal.size()?;
+        let mut state = &mut self.state;
+        self.terminal.draw(|f| ui::draw_all(f, &mut state, &msg))?;
+        Ok(())
     }
 }
 
