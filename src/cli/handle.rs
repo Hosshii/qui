@@ -18,6 +18,7 @@ pub fn handle_matches(matches: &ArgMatches<'_>, cmd: &str) {
 
 mod channel {
     use super::*;
+    use rust_traq::apis;
 
     pub fn channel(matches: &ArgMatches<'_>, cmd: &str) {
         match cmd {
