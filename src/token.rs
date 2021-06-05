@@ -1,6 +1,8 @@
 use std::{
+    fs::File,
     io::prelude::*,
     net::{TcpListener, TcpStream},
+    path::Path,
 };
 
 use rand::{self, distributions::Alphanumeric, Rng};
@@ -200,4 +202,54 @@ pub fn parse_response_code(url: &mut str) -> Option<String> {
         .nth(1)
         .and_then(|strs| strs.split('&').next())
         .map(|s| s.to_owned())
+}
+
+const TOKEN_LENGTH: usize = 36;
+pub fn get_cached_token(path: &Path) -> Option<String> {
+    let display = path.display();
+    let mut file = match File::open(&path) {
+        Ok(file) => file,
+        Err(why) => {
+            eprintln!("couldn't open {}: {:?}", display, why.to_string());
+            return None;
+        }
+    };
+    let mut token_info_string = String::new();
+    match file.read_to_string(&mut token_info_string) {
+        Err(why) => {
+            eprintln!("couldn't read {}: {}", display, why.to_string());
+            None
+        }
+        Ok(s) => {
+            if s != TOKEN_LENGTH {
+                eprintln!("token size is invalid. expected 34, found {}", s);
+                None
+            } else {
+                Some(token_info_string)
+            }
+        }
+    }
+}
+
+pub fn store_token(path: &Path, token: &str) {
+    if token.len() != TOKEN_LENGTH {
+        eprintln!("token size is invalid. expected 34, found {}", token.len());
+        todo!()
+    }
+    let display = path.display();
+    let mut file = match File::create(&path) {
+        Ok(file) => file,
+        Err(why) => {
+            eprintln!("couldn't open {}: {:?}", display, why.to_string());
+            todo!()
+        }
+    };
+
+    match file.write_all(token.as_bytes()) {
+        Ok(file) => file,
+        Err(why) => {
+            eprintln!("couldn't open {}: {:?}", display, why.to_string());
+            todo!()
+        }
+    }
 }
