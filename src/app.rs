@@ -8,7 +8,7 @@ use crate::{
 
 const MAX_CHANNEL_WINDOW_SIZE: usize = 5;
 #[derive(Debug, PartialEq, Eq)]
-enum ActiveBlock {
+enum Block {
     Help,
     Channel([u8; MAX_CHANNEL_WINDOW_SIZE]),
     ChannelTree,
@@ -17,7 +17,8 @@ enum ActiveBlock {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AppState {
-    active_block: ActiveBlock,
+    active_block: Block,
+    selected_block: Block,
     key: Key,
     should_quit: bool,
     pub frame: Rect,
@@ -26,7 +27,8 @@ pub struct AppState {
 impl AppState {
     pub fn new(frame: Rect) -> Self {
         Self {
-            active_block: ActiveBlock::Empty,
+            active_block: Block::Empty,
+            selected_block: Block::Empty,
             key: Key::Null,
             should_quit: false,
             frame,
@@ -37,7 +39,7 @@ impl AppState {
         self.key = k;
         match k {
             Key::Char(c) => match c {
-                'q' if self.active_block == ActiveBlock::Empty => {
+                'q' if self.active_block == Block::Empty => {
                     self.should_quit = true;
                 }
                 _ => {}
@@ -45,7 +47,9 @@ impl AppState {
             Key::Ctrl('c') => {
                 self.should_quit = true;
             }
-            _ => {}
+            x => {
+                self.key = x;
+            }
         }
     }
 
