@@ -14,3 +14,4 @@ rust_traq = { git = "https://github.com/hosshii/rust_traq.git", branch = "main" 
 rand = "0.8.3"
 webbrowser = "0.5.5"
 tokio = { version = "0.2.2", features = ["full"] }
+thiserror = "1.0.25"
