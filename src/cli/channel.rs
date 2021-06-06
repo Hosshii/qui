@@ -189,10 +189,10 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
     match cmd {
         "list" => {
             let tree = get_channel_tree(conf).await?;
-            // RefCell::borrow(&tree.current)
-            //     .children
-            //     .iter()
-            //     .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+            RefCell::borrow(&tree.current)
+                .children
+                .iter()
+                .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
 
             Ok(())
         }
