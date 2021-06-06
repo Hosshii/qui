@@ -1,35 +1,25 @@
+use super::channel;
+use anyhow::Result;
 use clap::ArgMatches;
+use rust_traq::apis::configuration::Configuration;
 
-pub fn handle_matches(matches: &ArgMatches<'_>, cmd: &str) {
+pub async fn handle_matches(
+    conf: &Configuration,
+    matches: &ArgMatches<'_>,
+    cmd: &str,
+) -> Result<()> {
     match cmd {
         "channel" => {
             if let Some(cmd) = matches.subcommand_name() {
                 let m = matches.subcommand_matches(cmd).unwrap();
-                channel::channel(m, cmd);
+                channel::channel(conf, m, cmd).await
             } else {
-                channel::channel(matches, "list")
+                channel::channel(conf, matches, "list").await
             }
         }
         x => {
             dbg!("{}", x);
+            Ok(())
         }
     }
-}
-
-mod channel {
-    use super::*;
-    use rust_traq::apis;
-
-    pub fn channel(matches: &ArgMatches<'_>, cmd: &str) {
-        match cmd {
-            "list" => {
-                dbg!("list!!");
-            }
-            x => {
-                dbg!("{}", x);
-            }
-        }
-    }
-
-    fn get_channels() {}
 }
