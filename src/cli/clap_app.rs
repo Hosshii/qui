@@ -48,6 +48,12 @@ mod channel {
                     .long("recursive")
                     .help("show channel recursively"),
             )
+            .arg(
+                Arg::with_name("full")
+                    .short("f")
+                    .long("full-path")
+                    .help("show full path of channel"),
+            )
             .arg(Arg::with_name("channel_name").help("specify channel name"))
     }
 

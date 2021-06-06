@@ -141,18 +141,27 @@ impl ChannelTreeNode {
         }
     }
 
-    fn list(&self) {
+    fn list(&self, full: bool) {
+        let full = if full {
+            self.get_parent_full_path()
+        } else {
+            "".to_owned()
+        };
         self.children
             .iter()
-            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+            .for_each(|ch| println!("{}/{}", full, &RefCell::borrow(&ch).name));
     }
 
-    fn list_r(&self) {
-        if self.is_root() {
-            self._list_r("");
+    fn list_r(&self, full: bool) {
+        let parent = if full {
+            self.get_parent_full_path()
+        } else if self.is_root() {
+            "".to_owned()
         } else {
-            self._list_r(".");
-        }
+            ".".to_owned()
+        };
+
+        self._list_r(&parent);
     }
 
     fn _list_r(&self, parent: &str) {
@@ -165,6 +174,23 @@ impl ChannelTreeNode {
 
     fn is_root(&self) -> bool {
         self.parent.upgrade().is_none()
+    }
+
+    fn get_parent_full_path(&self) -> String {
+        if self.is_root() {
+            "".to_owned()
+        } else {
+            let mut parent = self.parent.upgrade().unwrap();
+            // let mut path = format!("/{}", RefCell::borrow(&parent).name.clone());
+            let mut path = self.name.clone();
+            while !RefCell::borrow(&parent).is_root() {
+                path = format!("{}/{}", RefCell::borrow(&parent).name.clone(), path);
+                let _parent = &RefCell::borrow(&parent).parent.upgrade().unwrap();
+                parent = Rc::clone(&_parent);
+            }
+
+            format!("/{}", &path[..path.len() - 1])
+        }
     }
 }
 
@@ -248,10 +274,12 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
                 let channel_path = Path::new(channel_name);
                 tree.go_path(channel_path)?;
             }
+
+            let full = matches.is_present("full");
             if matches.is_present("recursive") {
-                tree.cur().list_r();
+                tree.cur().list_r(full);
             } else {
-                tree.cur().list();
+                tree.cur().list(full);
             }
 
             tree.current = cur;
