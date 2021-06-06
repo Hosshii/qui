@@ -42,6 +42,12 @@ mod channel {
             .about("Channel api")
             .long_about("This command manipulate channel api.")
             .visible_alias("ls")
+            .arg(
+                Arg::with_name("recursive")
+                    .short("r")
+                    .long("recursive")
+                    .help("show channel recursively"),
+            )
     }
 
     fn cd() -> App<'static, 'static> {

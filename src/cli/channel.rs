@@ -38,6 +38,20 @@ impl ChannelTree {
         Ok(())
     }
 
+    pub fn list(&self) {
+        RefCell::borrow(&self.current)
+            .children
+            .iter()
+            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+    }
+
+    pub fn list_r(&self) {
+        RefCell::borrow(&self.current)
+            .children
+            .iter()
+            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+    }
+
     fn go_root(&mut self) {
         self.current = Rc::clone(&self.root);
     }
@@ -112,6 +126,32 @@ impl ChannelTreeNode {
             archived: true,
             parent: Weak::new(),
         }
+    }
+
+    fn list(&self) {
+        self.children
+            .iter()
+            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+    }
+
+    fn list_r(&self) {
+        if self.is_root() {
+            self._list_r("");
+        } else {
+            self._list_r(".");
+        }
+    }
+
+    fn _list_r(&self, parent: &str) {
+        self.children.iter().for_each(|ch| {
+            let cur = format!("{}/{}", parent, &RefCell::borrow(&ch).name);
+            println!("{}", cur);
+            RefCell::borrow(ch)._list_r(&cur);
+        });
+    }
+
+    fn is_root(&self) -> bool {
+        self.parent.upgrade().is_none()
     }
 }
 
@@ -189,10 +229,11 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
     match cmd {
         "list" => {
             let tree = get_channel_tree(conf).await?;
-            RefCell::borrow(&tree.current)
-                .children
-                .iter()
-                .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+            if matches.is_present("recursive") {
+                RefCell::borrow(&tree.current).list_r();
+            } else {
+                RefCell::borrow(&tree.current).list();
+            }
 
             Ok(())
         }
