@@ -1,6 +1,6 @@
 use std::{
     borrow::Borrow,
-    cell::RefCell,
+    cell::{Ref, RefCell},
     collections::BTreeMap,
     ffi::OsStr,
     path::{self, Path},
@@ -26,16 +26,29 @@ impl ChannelTree {
     }
 
     pub fn go_path(&mut self, channel_name: &Path) -> Result<()> {
+        let cur = Rc::clone(&self.current);
         for p in channel_name {
             if p == OsStr::new("/") {
                 self.go_root();
             } else if p == OsStr::new("..") {
-                self.go_up()?;
-            } else {
-                self.go_down(p.to_str().unwrap())?;
+                if let Err(e) = self.go_up() {
+                    self.current = cur;
+                    return Err(e);
+                }
+            } else if let Err(e) = self.go_down(p.to_str().unwrap()) {
+                self.current = cur;
+                return Err(e);
             }
         }
         Ok(())
+    }
+
+    pub fn root(&self) -> Ref<ChannelTreeNode> {
+        RefCell::borrow(&self.root)
+    }
+
+    pub fn cur(&self) -> Ref<ChannelTreeNode> {
+        RefCell::borrow(&self.current)
     }
 
     pub fn list(&self) {
@@ -228,12 +241,20 @@ fn construct_tree(
 pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) -> Result<()> {
     match cmd {
         "list" => {
-            let tree = get_channel_tree(conf).await?;
-            if matches.is_present("recursive") {
-                RefCell::borrow(&tree.current).list_r();
-            } else {
-                RefCell::borrow(&tree.current).list();
+            let mut tree = get_channel_tree(conf).await?;
+            let cur = Rc::clone(&tree.current);
+
+            if let Some(channel_name) = matches.value_of("channel_name") {
+                let channel_path = Path::new(channel_name);
+                tree.go_path(channel_path)?;
             }
+            if matches.is_present("recursive") {
+                tree.cur().list_r();
+            } else {
+                tree.cur().list();
+            }
+
+            tree.current = cur;
 
             Ok(())
         }

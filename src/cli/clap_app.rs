@@ -48,6 +48,7 @@ mod channel {
                     .long("recursive")
                     .help("show channel recursively"),
             )
+            .arg(Arg::with_name("channel_name").help("specify channel name"))
     }
 
     fn cd() -> App<'static, 'static> {
