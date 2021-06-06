@@ -1,19 +1,16 @@
+use anyhow::Result;
 use qui::{
-    app::App,
     cli::{clap_app, handle},
     token::{self, TraqOAuthParam},
     utils::Events,
 };
 use rust_traq::apis::{self, configuration::Configuration};
-use std::{
-    env, io,
-    path::{Path, PathBuf},
-};
+use std::{env, io, path::Path};
 use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{backend::TermionBackend, Terminal};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     // let stdout = io::stdout().into_raw_mode()?;
     // let stdout = MouseTerminal::from(stdout);
     // let stdout = AlternateScreen::from(stdout);
@@ -63,13 +60,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap());
 
-    dbg!("{:?}", apis::user_api::get_users(&conf, None).await);
-
     let app = clap_app::clap_app();
     let matches = app.get_matches();
     if let Some(cmd) = matches.subcommand_name() {
         let m = matches.subcommand_matches(cmd).unwrap();
-        handle::handle_matches(m, cmd);
+        handle::handle_matches(conf, m, cmd).await?;
     }
 
     Ok(())
