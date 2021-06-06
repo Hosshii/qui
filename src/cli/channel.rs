@@ -2,10 +2,12 @@ use std::{
     borrow::Borrow,
     cell::RefCell,
     collections::BTreeMap,
+    ffi::OsStr,
+    path::{self, Path},
     rc::{Rc, Weak},
 };
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use rust_traq::{
     apis::{self, configuration::Configuration},
@@ -13,12 +15,61 @@ use rust_traq::{
 };
 
 pub struct ChannelTree {
-    node: Rc<RefCell<ChannelTreeNode>>,
+    root: Rc<RefCell<ChannelTreeNode>>,
+    current: Rc<RefCell<ChannelTreeNode>>,
 }
 
 impl ChannelTree {
-    pub fn new(node: Rc<RefCell<ChannelTreeNode>>) -> Self {
-        Self { node }
+    pub fn new(root: Rc<RefCell<ChannelTreeNode>>) -> Self {
+        let current = Rc::clone(&root);
+        Self { root, current }
+    }
+
+    pub fn go_path(&mut self, channel_name: &Path) -> Result<()> {
+        for p in channel_name {
+            if p == OsStr::new("/") {
+                self.go_root();
+            } else if p == OsStr::new("..") {
+                self.go_up()?;
+            } else {
+                self.go_down(p.to_str().unwrap())?;
+            }
+        }
+        Ok(())
+    }
+
+    fn go_root(&mut self) {
+        self.current = Rc::clone(&self.root);
+    }
+
+    fn go_down(&mut self, name: &str) -> Result<()> {
+        let cur;
+        {
+            let children = &RefCell::borrow(&self.current).children;
+            let child = children
+                .iter()
+                .find(|ch| RefCell::borrow(ch).name == name)
+                .with_context(|| format!("{} is not found", name))?;
+            cur = Rc::clone(child);
+        }
+        self.current = cur;
+        Ok(())
+    }
+
+    fn go_up(&mut self) -> Result<()> {
+        let x = {
+            let parent = &RefCell::borrow(&self.current).parent;
+
+            match parent.upgrade() {
+                None => {
+                    bail!("parent is not exists");
+                }
+                Some(x) => Rc::clone(&x),
+            }
+        };
+
+        self.current = x;
+        Ok(())
     }
 }
 
@@ -138,13 +189,27 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
     match cmd {
         "list" => {
             let tree = get_channel_tree(conf).await?;
-            RefCell::borrow(&tree.node).children.iter().for_each(|ch| {
-                println!(
-                    "{}",
-                    RefCell::borrow(&RefCell::borrow(&ch).children[0]).name
-                )
-            });
+            // RefCell::borrow(&tree.current)
+            //     .children
+            //     .iter()
+            //     .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
 
+            Ok(())
+        }
+        "cd" => {
+            dbg!("cd");
+            if let Some(ch_name) = matches.value_of("channel_name") {
+                dbg!("{}", ch_name);
+                let mut tree = get_channel_tree(conf).await?;
+                let path = Path::new(ch_name);
+                tree.go_path(path)?;
+                // RefCell::borrow(&tree.current)
+                //     .children
+                //     .iter()
+                //     .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
+            } else {
+                todo!();
+            }
             Ok(())
         }
         x => {

@@ -32,6 +32,7 @@ mod channel {
             .long_about("This command manipulate channel api.")
             .visible_alias("ch")
             .subcommand(list())
+            .subcommand(cd())
     }
 
     fn list() -> App<'static, 'static> {
@@ -41,5 +42,19 @@ mod channel {
             .about("Channel api")
             .long_about("This command manipulate channel api.")
             .visible_alias("ls")
+    }
+
+    fn cd() -> App<'static, 'static> {
+        SubCommand::with_name("cd")
+            .version(env!("CARGO_PKG_VERSION"))
+            .author(env!("CARGO_PKG_AUTHORS"))
+            .about("change channel")
+            .long_about("change current channel")
+            .arg(
+                Arg::with_name("channel_name")
+                    .help("channel name")
+                    .required(true)
+                    .multiple(false),
+            )
     }
 }
