@@ -1,40 +1,46 @@
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    collections::BTreeMap,
+    rc::{Rc, Weak},
+};
 
-use super::*;
 use anyhow::Result;
 use clap::ArgMatches;
 use rust_traq::{
-    apis::{self, channel_api::GetChannelsError, configuration::Configuration},
+    apis::{self, configuration::Configuration},
     models,
 };
 
 pub struct ChannelTree {
-    node: ChannelTreeNode,
+    node: Rc<RefCell<ChannelTreeNode>>,
 }
 
 impl ChannelTree {
-    pub fn new(node: ChannelTreeNode) -> Self {
+    pub fn new(node: Rc<RefCell<ChannelTreeNode>>) -> Self {
         Self { node }
     }
 }
 
 type ChannelId = String;
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug)]
 pub struct ChannelTreeNode {
     id: ChannelId,
     name: String,
-    children: Vec<ChannelTreeNode>,
+    children: Vec<Rc<RefCell<ChannelTreeNode>>>,
     active: bool,
     archived: bool,
+    parent: Weak<RefCell<ChannelTreeNode>>,
 }
 
 impl ChannelTreeNode {
     pub fn new(
         id: ChannelId,
         name: String,
-        children: Vec<ChannelTreeNode>,
+        children: Vec<Rc<RefCell<ChannelTreeNode>>>,
         active: bool,
         archived: bool,
+        parent: Weak<RefCell<ChannelTreeNode>>,
     ) -> Self {
         Self {
             id,
@@ -42,6 +48,18 @@ impl ChannelTreeNode {
             children,
             active,
             archived,
+            parent,
+        }
+    }
+
+    pub fn dummy() -> Self {
+        Self {
+            id: "".to_owned(),
+            name: "dummy".to_owned(),
+            children: Vec::new(),
+            active: false,
+            archived: true,
+            parent: Weak::new(),
         }
     }
 }
@@ -85,27 +103,47 @@ impl From<models::Channel> for ChannelLike {
     }
 }
 
-fn construct_tree(ch: ChannelLike, mp: &BTreeMap<ChannelId, ChannelLike>) -> ChannelTreeNode {
+fn construct_tree(
+    p: Weak<RefCell<ChannelTreeNode>>,
+    ch: ChannelLike,
+    mp: &BTreeMap<ChannelId, ChannelLike>,
+) -> Rc<RefCell<ChannelTreeNode>> {
     if ch.children.is_empty() {
-        return ChannelTreeNode::new(ch.id, ch.name, Vec::new(), true, ch.archived);
+        let leaf = ChannelTreeNode::new(ch.id, ch.name, Vec::new(), true, ch.archived, p);
+        return Rc::new(RefCell::new(leaf));
     }
 
+    let cur = Rc::new(RefCell::new(ChannelTreeNode::new(
+        ch.id,
+        ch.name,
+        Vec::new(),
+        true,
+        ch.archived,
+        p,
+    )));
     let children = ch
         .children
         .into_iter()
-        .filter_map(|ch_id| mp.get(&ch_id).map(|ch| construct_tree(ch.clone(), mp)))
+        .filter_map(|ch_id| {
+            mp.get(&ch_id)
+                .map(|ch| construct_tree(Rc::downgrade(&cur), ch.clone(), mp))
+        })
         .collect();
-    ChannelTreeNode::new(ch.id, ch.name, children, true, ch.archived)
+
+    cur.borrow_mut().children = children;
+    cur
 }
 
 pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) -> Result<()> {
     match cmd {
         "list" => {
             let tree = get_channel_tree(conf).await?;
-            tree.node
-                .children
-                .iter()
-                .for_each(|ch| println!("{}", ch.name));
+            RefCell::borrow(&tree.node).children.iter().for_each(|ch| {
+                println!(
+                    "{}",
+                    RefCell::borrow(&RefCell::borrow(&ch).children[0]).name
+                )
+            });
 
             Ok(())
         }
@@ -132,7 +170,9 @@ async fn get_channel_tree(conf: &Configuration) -> Result<ChannelTree> {
         .collect();
 
     let dummy_channel = ChannelLike::new("".to_owned(), "dummy", None, root_channel_ids, false);
-    let tree = ChannelTree::new(construct_tree(dummy_channel, &mp));
+    let p = ChannelTreeNode::dummy();
+    let p = Rc::downgrade(&Rc::new(RefCell::new(p)));
+    let tree = ChannelTree::new(construct_tree(p, dummy_channel, &mp));
 
     Ok(tree)
 }
