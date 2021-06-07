@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use qui::{
     cli::{clap_app, handle},
     token::{self, TraqOAuthParam},
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
                 dbg!("{:?}", &tk);
                 conf.oauth_access_token = Some(tk.access_token);
             }
-            Err(()) => {
+            Err(_) => {
                 println!("Starting webserver failed. Continuing with manual authentication");
                 token::request_token(&mut traq_oauth);
                 println!("Enter the URL you were redirected to: ");
@@ -58,6 +58,10 @@ async fn main() -> Result<()> {
             }
         },
     }
+
+    token::verify_token(conf)
+        .await
+        .with_context(|| "verification error")?;
     token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap());
 
     let app = clap_app::clap_app();

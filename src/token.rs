@@ -5,9 +5,14 @@ use std::{
     path::Path,
 };
 
+use anyhow::{bail, Context, Result};
 use rand::{self, distributions::Alphanumeric, Rng};
 use rust_traq::{
-    apis::{configuration, oauth2_api::post_o_auth2_token},
+    apis::{
+        authentication_api,
+        configuration::{self, Configuration},
+        me_api, oauth2_api,
+    },
     models::{OAuth2Prompt, OAuth2ResponseType, OAuth2Token},
 };
 
@@ -76,7 +81,7 @@ impl<'a> TraqOAuthParam<'a> {
     }
 }
 
-pub fn redirect_uri_web_server(traq_oauth: &mut TraqOAuthParam, port: u16) -> Result<String, ()> {
+pub fn redirect_uri_web_server(traq_oauth: &mut TraqOAuthParam, port: u16) -> Result<String> {
     let listener = TcpListener::bind(format!("127.0.0.1:{}", port));
 
     match listener {
@@ -91,17 +96,17 @@ pub fn redirect_uri_web_server(traq_oauth: &mut TraqOAuthParam, port: u16) -> Re
                         }
                     }
                     Err(e) => {
-                        println!("Error: {}", e);
+                        bail!("{}", e)
                     }
                 };
             }
         }
         Err(e) => {
-            println!("Error: {}", e);
+            bail!("{}", e)
         }
     }
 
-    Err(())
+    bail!("cannot handle")
 }
 
 fn handle_connection(mut stream: TcpStream) -> Option<String> {
@@ -169,7 +174,7 @@ pub fn generate_random_string(length: usize) -> String {
 pub async fn get_token(traq_oauth: &mut TraqOAuthParam<'_>, mut url: String) -> OAuth2Token {
     match parse_response_code(&mut url) {
         Some(code) => {
-            match post_o_auth2_token(
+            match oauth2_api::post_o_auth2_token(
                 traq_oauth.configuration,
                 "authorization_code",
                 Some(&code),
@@ -252,4 +257,9 @@ pub fn store_token(path: &Path, token: &str) {
             todo!()
         }
     }
+}
+
+pub async fn verify_token(conf: &Configuration) -> Result<()> {
+    me_api::get_my_user_tags(conf).await?;
+    Ok(())
 }
