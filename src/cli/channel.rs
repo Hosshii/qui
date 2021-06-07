@@ -282,9 +282,7 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
             Ok(())
         }
         "cd" => {
-            dbg!("cd");
             if let Some(ch_name) = matches.value_of("channel_name") {
-                dbg!("{}", ch_name);
                 let mut tree = get_channel_tree(conf).await?;
                 let path = Path::new(ch_name);
                 tree.go_path(path)?;

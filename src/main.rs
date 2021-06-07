@@ -41,8 +41,7 @@ async fn main() -> Result<()> {
         }
         None => match token::redirect_uri_web_server(&mut traq_oauth, port) {
             Ok(url) => {
-                let tk = token::get_token(&mut traq_oauth, url).await;
-                dbg!("{:?}", &tk);
+                let tk = token::get_token(&mut traq_oauth, url).await?;
                 conf.oauth_access_token = Some(tk.access_token);
             }
             Err(_) => {
@@ -52,7 +51,7 @@ async fn main() -> Result<()> {
                 let mut input = String::new();
                 match io::stdin().read_line(&mut input) {
                     Ok(_) => {
-                        let tk = token::get_token(&mut traq_oauth, input).await;
+                        let tk = token::get_token(&mut traq_oauth, input).await?;
                         conf.oauth_access_token = Some(tk.access_token);
                     }
                     Err(_) => todo!(),

@@ -170,35 +170,28 @@ pub fn generate_random_string(length: usize) -> String {
         .collect()
 }
 
-pub async fn get_token(traq_oauth: &mut TraqOAuthParam<'_>, mut url: String) -> OAuth2Token {
-    match parse_response_code(&mut url) {
-        Some(code) => {
-            match oauth2_api::post_o_auth2_token(
-                traq_oauth.configuration,
-                "authorization_code",
-                Some(&code),
-                traq_oauth.redirect_uri,
-                Some(traq_oauth.client_id),
-                None,
-                None,
-                None,
-                traq_oauth.scope,
-                None,
-                None,
-            )
-            .await
-            {
-                Ok(token) => return token,
-                Err(e) => {
-                    dbg!("{}", e);
-                    todo!();
-                }
-            }
-        }
-        None => {
-            todo!()
-        }
-    }
+pub async fn get_token(
+    traq_oauth: &mut TraqOAuthParam<'_>,
+    mut url: String,
+) -> Result<OAuth2Token> {
+    let code = parse_response_code(&mut url).with_context(|| "parse error")?;
+
+    let token = oauth2_api::post_o_auth2_token(
+        traq_oauth.configuration,
+        "authorization_code",
+        Some(&code),
+        traq_oauth.redirect_uri,
+        Some(traq_oauth.client_id),
+        None,
+        None,
+        None,
+        traq_oauth.scope,
+        None,
+        None,
+    )
+    .await
+    .with_context(|| "post token error")?;
+    Ok(token)
 }
 
 pub fn parse_response_code(url: &mut str) -> Option<String> {
