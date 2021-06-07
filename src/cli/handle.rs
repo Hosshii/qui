@@ -1,4 +1,4 @@
-use super::channel;
+use super::{channel, notify};
 use anyhow::Result;
 use clap::ArgMatches;
 use rust_traq::apis::configuration::Configuration;
@@ -17,6 +17,7 @@ pub async fn handle_matches(
                 channel::channel(conf, matches, "list").await
             }
         }
+        "notify" => notify::notify(conf, matches).await,
         x => {
             dbg!("{}", x);
             Ok(())

@@ -27,7 +27,9 @@ async fn main() -> Result<()> {
     let port = 8080;
     let client_id = &env::var("TRAQ_CLIENT_ID").expect("TRAQ_CLIENT_ID must not be blunk");
 
-    let conf = &mut Configuration::default();
+    let mut conf = &mut Configuration::default();
+    conf.base_path = "https://traq-s-dev.tokyotech.org/api/v3".to_owned();
+
     let mut traq_oauth = TraqOAuthParam::new(&conf, &&client_id, None);
 
     let token_path = Path::new("token.txt");

@@ -11,7 +11,7 @@ use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use rust_traq::{
     apis::{self, configuration::Configuration},
-    models,
+    models::{self, ChannelList},
 };
 
 pub struct ChannelTree {
@@ -64,6 +64,16 @@ impl ChannelTree {
             .iter()
             .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
     }
+
+    pub fn name_to_id(&mut self, channel_name: &Path) -> Result<String> {
+        let cur = Rc::clone(&self.current);
+        self.go_path(channel_name)?;
+        let id = RefCell::borrow(&self.current).id.clone();
+        self.current = cur;
+        Ok(id)
+    }
+
+    // pub fn as_named_map(self) -> BTreeMap<String, ChannelLike> {}
 
     fn go_root(&mut self) {
         self.current = Rc::clone(&self.root);
@@ -196,11 +206,11 @@ impl ChannelTreeNode {
 
 #[derive(Debug, Clone)]
 pub struct ChannelLike {
-    id: ChannelId,
-    name: String,
-    parent_id: Option<ChannelId>,
-    children: Vec<ChannelId>,
-    archived: bool,
+    pub id: ChannelId,
+    pub name: String,
+    pub parent_id: Option<ChannelId>,
+    pub children: Vec<ChannelId>,
+    pub archived: bool,
 }
 
 impl ChannelLike {
@@ -309,8 +319,8 @@ pub async fn channel(conf: &Configuration, matches: &ArgMatches<'_>, cmd: &str) 
     }
 }
 
-async fn get_channel_tree(conf: &Configuration) -> Result<ChannelTree> {
-    let channels = apis::channel_api::get_channels(conf, None).await.unwrap();
+pub(crate) async fn get_channel_tree(conf: &Configuration) -> Result<ChannelTree> {
+    let channels = apis::channel_api::get_channels(conf, None).await?;
     let root_channel_ids: Vec<ChannelId> = channels
         .public
         .iter()
@@ -318,11 +328,7 @@ async fn get_channel_tree(conf: &Configuration) -> Result<ChannelTree> {
         .map(|ch| ch.id.clone())
         .collect();
 
-    let mp: BTreeMap<ChannelId, ChannelLike> = channels
-        .public
-        .into_iter()
-        .map(|ch| (ch.id.clone(), ChannelLike::from(ch)))
-        .collect();
+    let mp = get_channels_mp(channels);
 
     let dummy_channel = ChannelLike::new("".to_owned(), "dummy", None, root_channel_ids, false);
     let p = ChannelTreeNode::dummy();
@@ -330,4 +336,13 @@ async fn get_channel_tree(conf: &Configuration) -> Result<ChannelTree> {
     let tree = ChannelTree::new(construct_tree(p, dummy_channel, &mp));
 
     Ok(tree)
+}
+
+pub(crate) fn get_channels_mp(channels: ChannelList) -> BTreeMap<ChannelId, ChannelLike> {
+    let mp: BTreeMap<ChannelId, ChannelLike> = channels
+        .public
+        .into_iter()
+        .map(|ch| (ch.id.clone(), ChannelLike::from(ch)))
+        .collect();
+    mp
 }

@@ -16,7 +16,8 @@ pub fn clap_app() -> App<'static, 'static> {
         .usage("Press `?` while running the app to see keybindings")
         .before_help(BANNER)
         .after_help("after help")
-        .subcommand(channel::channel_subcommand());
+        .subcommand(channel::channel_subcommand())
+        .subcommand(notify::notify_subcommand());
 
     clap_app
 }
@@ -68,6 +69,35 @@ mod channel {
                     .help("channel name")
                     .required(true)
                     .multiple(false),
+            )
+    }
+}
+
+mod notify {
+    use super::*;
+
+    pub fn notify_subcommand() -> App<'static, 'static> {
+        SubCommand::with_name("notify")
+            .version(env!("CARGO_PKG_VERSION"))
+            .author(env!("CARGO_PKG_AUTHORS"))
+            .about("notification api")
+            .long_about("This command manipulate notification api.")
+            .visible_alias("notif")
+            .arg(
+                Arg::with_name("level")
+                    // .short("l")
+                    // .long("level")
+                    .help("notification level. 0: not subscribe, 1: unread only, 2: on")
+                    // .takes_value(true)
+                    .multiple(false)
+                    .required(true),
+            )
+            .arg(
+                Arg::with_name("channel_names")
+                    // .long("channel-names")
+                    .help("specify channel names")
+                    .takes_value(true)
+                    .multiple(true), // .required(true),
             )
     }
 }
