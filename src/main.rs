@@ -43,6 +43,10 @@ async fn main() -> Result<()> {
             Ok(url) => {
                 let tk = token::get_token(&mut traq_oauth, url).await?;
                 conf.oauth_access_token = Some(tk.access_token);
+                token::verify_token(conf)
+                    .await
+                    .with_context(|| "verification error")?;
+                token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap())?;
             }
             Err(_) => {
                 println!("Starting webserver failed. Continuing with manual authentication");
@@ -53,17 +57,16 @@ async fn main() -> Result<()> {
                     Ok(_) => {
                         let tk = token::get_token(&mut traq_oauth, input).await?;
                         conf.oauth_access_token = Some(tk.access_token);
+                        token::verify_token(conf)
+                            .await
+                            .with_context(|| "verification error")?;
+                        token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap())?;
                     }
                     Err(_) => todo!(),
                 }
             }
         },
     }
-
-    token::verify_token(conf)
-        .await
-        .with_context(|| "verification error")?;
-    token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap())?;
 
     let app = clap_app::clap_app();
     let matches = app.get_matches();
