@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{DirBuilder, File},
     io::prelude::*,
     net::{TcpListener, TcpStream},
     path::Path,
@@ -9,7 +9,6 @@ use anyhow::{bail, Context, Result};
 use rand::{self, distributions::Alphanumeric, Rng};
 use rust_traq::{
     apis::{
-        authentication_api,
         configuration::{self, Configuration},
         me_api, oauth2_api,
     },
@@ -236,27 +235,25 @@ pub fn get_cached_token(path: &Path) -> Option<String> {
     }
 }
 
-pub fn store_token(path: &Path, token: &str) {
+pub fn store_token(path: &Path, token: &str) -> Result<()> {
     if token.len() != TOKEN_LENGTH {
         eprintln!("token size is invalid. expected 34, found {}", token.len());
-        todo!()
+        bail!("invalid token length")
     }
-    let display = path.display();
-    let mut file = match File::create(&path) {
-        Ok(file) => file,
-        Err(why) => {
-            eprintln!("couldn't open {}: {:?}", display, why.to_string());
-            todo!()
-        }
-    };
 
-    match file.write_all(token.as_bytes()) {
-        Ok(file) => file,
-        Err(why) => {
-            eprintln!("couldn't open {}: {:?}", display, why.to_string());
-            todo!()
-        }
+    let display = path.display();
+
+    let mut builder = DirBuilder::new();
+    if let Some(parent) = path.parent() {
+        builder.recursive(true).create(parent)?;
     }
+    let mut file = File::create(&path).with_context(|| "cannot create file")?;
+
+    file.write_all(token.as_bytes())
+        .with_context(|| "write error")?;
+
+    println!("token is stored in {}", display);
+    Ok(())
 }
 
 pub async fn verify_token(conf: &Configuration) -> Result<()> {

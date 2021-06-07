@@ -2,12 +2,12 @@ use anyhow::{Context, Result};
 use qui::{
     cli::{clap_app, handle},
     token::{self, TraqOAuthParam},
-    utils::Events,
+    // utils::Events,
 };
-use rust_traq::apis::{self, configuration::Configuration};
-use std::{env, io, path::Path};
-use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
-use tui::{backend::TermionBackend, Terminal};
+use rust_traq::apis::configuration::Configuration;
+use std::{env, io, path::PathBuf};
+// use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
+// use tui::{backend::TermionBackend, Terminal};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,7 +32,8 @@ async fn main() -> Result<()> {
 
     let mut traq_oauth = TraqOAuthParam::new(&conf, &&client_id, None);
 
-    let token_path = Path::new("token.txt");
+    let token_path = get_token_path()?;
+    let token_path = token_path.as_path();
 
     match token::get_cached_token(&token_path) {
         Some(token) => {
@@ -52,7 +53,6 @@ async fn main() -> Result<()> {
                 match io::stdin().read_line(&mut input) {
                     Ok(_) => {
                         let tk = token::get_token(&mut traq_oauth, input).await;
-                        dbg!("{:?}", &tk);
                         conf.oauth_access_token = Some(tk.access_token);
                     }
                     Err(_) => todo!(),
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     token::verify_token(conf)
         .await
         .with_context(|| "verification error")?;
-    token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap());
+    token::store_token(&token_path, conf.oauth_access_token.as_ref().unwrap())?;
 
     let app = clap_app::clap_app();
     let matches = app.get_matches();
@@ -74,4 +74,15 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn get_token_path() -> Result<PathBuf> {
+    let home = env::var("HOME")?;
+
+    let mut path = PathBuf::new();
+    path.push(home);
+    path.push(".config");
+    path.push("qui");
+    path.push("token.txt");
+    Ok(path)
 }
