@@ -1,9 +1,8 @@
 use std::{
-    borrow::Borrow,
     cell::{Ref, RefCell},
     collections::BTreeMap,
     ffi::OsStr,
-    path::{self, Path},
+    path::Path,
     rc::{Rc, Weak},
 };
 
@@ -49,20 +48,6 @@ impl ChannelTree {
 
     pub fn cur(&self) -> Ref<ChannelTreeNode> {
         RefCell::borrow(&self.current)
-    }
-
-    pub fn list(&self) {
-        RefCell::borrow(&self.current)
-            .children
-            .iter()
-            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
-    }
-
-    pub fn list_r(&self) {
-        RefCell::borrow(&self.current)
-            .children
-            .iter()
-            .for_each(|ch| println!("{}", &RefCell::borrow(&ch).name));
     }
 
     pub fn name_to_id(&mut self, channel_name: &Path) -> Result<String> {
@@ -199,7 +184,7 @@ impl ChannelTreeNode {
                 parent = Rc::clone(&_parent);
             }
 
-            format!("/{}", &path[..path.len() - 1])
+            format!("/{}", &path)
         }
     }
 }

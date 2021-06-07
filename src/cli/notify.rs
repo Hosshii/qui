@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use futures::future;
 use rust_traq::{
-    apis::{channel_api, configuration::Configuration, notification_api},
+    apis::{configuration::Configuration, notification_api},
     models::{ChannelSubscribeLevel, PutChannelSubscribeLevelRequest},
 };
 use tokio::time;

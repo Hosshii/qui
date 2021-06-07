@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgGroup, SubCommand};
+use clap::{App, Arg, SubCommand};
 
 const BANNER: &str = "
             _ 
