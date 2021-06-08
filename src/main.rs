@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
+use clap::Shell;
 use qui::{
     cli::{clap_app, handle},
     token::{self, TraqOAuthParam},
@@ -68,8 +69,23 @@ async fn main() -> Result<()> {
         },
     }
 
-    let app = clap_app::clap_app();
-    let matches = app.get_matches();
+    let mut app = clap_app::clap_app();
+    let matches = app.clone().get_matches();
+
+    // completions
+    if let Some(s) = matches.value_of("completions") {
+        let shell = match s {
+            "fish" => Shell::Fish,
+            "bash" => Shell::Bash,
+            "zsh" => Shell::Zsh,
+            "power-shell" => Shell::PowerShell,
+            "elvish" => Shell::Elvish,
+            _ => bail!("no completions avaible for '{}'", s),
+        };
+        app.gen_completions_to(env!("CARGO_BIN_NAME"), shell, &mut io::stdout());
+        return Ok(());
+    }
+
     if let Some(cmd) = matches.subcommand_name() {
         let m = matches.subcommand_matches(cmd).unwrap();
         handle::handle_matches(conf, m, cmd).await?;
