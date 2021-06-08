@@ -16,32 +16,18 @@ use tokio::time;
 use super::channel;
 
 pub async fn notify(conf: &Configuration, matches: &ArgMatches<'_>) -> Result<()> {
-    match (
-        matches.value_of("level"),
-        matches.values_of("channel_names"),
-    ) {
-        (Some(level), Some(ids)) => {
-            let level = level
-                .parse::<u8>()
-                .with_context(|| "level must be 0, 1 or 2")?;
-            let mut tree = channel::get_channel_tree(conf).await?;
+    if let Some(level) = matches.value_of("level") {
+        let level = level
+            .parse::<u8>()
+            .with_context(|| "level must be 0, 1 or 2")?;
+        let mut tree = channel::get_channel_tree(conf).await?;
 
-            let ids = ids
-                .into_iter()
+        let ids = if let Some(ids) = matches.values_of("channel_names") {
+            ids.into_iter()
                 .map(|v| tree.name_to_id(Path::new(v)))
                 .collect::<Result<Vec<String>>>()
-                .with_context(|| "channel name not found")?;
-
-            let ids: Vec<(String, u8)> = ids.into_iter().map(|v| (v, level)).collect();
-
-            set_subscriptions(conf, ids).await?;
-        }
-        (Some(level), None) => {
-            let level = level
-                .parse::<u8>()
-                .with_context(|| "level must be 0, 1 or 2")?;
-            let mut tree = channel::get_channel_tree(conf).await?;
-
+                .with_context(|| "channel name not found")?
+        } else {
             let mut ids = String::new();
             io::stdin().read_to_string(&mut ids)?;
             let ids: Vec<String> = ids
@@ -49,12 +35,14 @@ pub async fn notify(conf: &Configuration, matches: &ArgMatches<'_>) -> Result<()
                 .map(|v| tree.name_to_id(Path::new(v)))
                 .collect::<Result<Vec<String>>>()
                 .with_context(|| "channel name not found")?;
-            let ids: Vec<(String, u8)> = ids.into_iter().map(|v| (v, level)).collect();
+            ids
+        };
 
-            set_subscriptions(conf, ids).await?;
-        }
-        _ => {}
+        let ids: Vec<(String, u8)> = ids.into_iter().map(|v| (v, level)).collect();
+
+        set_subscriptions(conf, ids).await?;
     }
+
     Ok(())
 }
 
@@ -70,7 +58,7 @@ pub async fn set_subscriptions(
                 1 => PutChannelSubscribeLevelRequest::new(ChannelSubscribeLevel::subscribed),
 
                 2 => PutChannelSubscribeLevelRequest::new(ChannelSubscribeLevel::notified),
-                _ => bail!("subscribe level must between 0 to 2"),
+                _ => bail!("subscribe level must be 0, 1 or 2"),
             };
             Ok((id, level))
         })
