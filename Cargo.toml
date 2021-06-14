@@ -16,3 +16,5 @@ webbrowser = "0.5.5"
 tokio = { version = "0.2.2", features = ["full"] }
 anyhow = "1.0.40"
 futures = "0.3.15"
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0.64"

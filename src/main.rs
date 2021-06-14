@@ -2,8 +2,8 @@ use anyhow::{bail, Context, Result};
 use clap::Shell;
 use qui::{
     cli::{clap_app, handle},
+    config,
     token::{self, TraqOAuthParam},
-    // utils::Events,
 };
 use rust_traq::apis::configuration::Configuration;
 use std::{env, io, path::PathBuf};
@@ -24,6 +24,8 @@ async fn main() -> Result<()> {
     // if let Err(e) = app.run() {
     //     eprintln!("{}", e);
     // }
+    config::ui::ui()?;
+    dbg!("here");
 
     let port = 8080;
     let client_id = &env::var("TRAQ_CLIENT_ID").expect("TRAQ_CLIENT_ID must not be blunk");
