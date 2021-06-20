@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Data {
+pub struct Data {
     server_url: String,
 }
 
@@ -23,9 +23,21 @@ impl Data {
     pub fn filename() -> &'static str {
         "config"
     }
+
+    pub fn set_server_url(&mut self, url: impl Into<String>) {
+        self.server_url = url.into();
+    }
 }
 
-struct Config {
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            server_url: "https://traq-s-dev.tokyotech.org/api/v3".to_owned(),
+        }
+    }
+}
+
+pub struct Config {
     data: Data,
 
     dir_path: PathBuf,
