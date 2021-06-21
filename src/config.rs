@@ -245,7 +245,7 @@ pub mod ui {
         let mut input = String::from("https://");
         let mut input_mode = &mut InputMode::Normal;
 
-        let mut client_id = String::from("https://");
+        let mut client_id = String::from("");
         let mut config_kind = &mut ConfigKind::ServerUrl;
         loop {
             match app.display_state {
