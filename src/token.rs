@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     fs::{DirBuilder, File},
     io::prelude::*,

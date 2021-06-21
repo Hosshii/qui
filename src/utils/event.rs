@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{self, Read};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{self, SendError, Sender};
