@@ -103,7 +103,7 @@ pub mod ui {
     use crate::utils::{Event, Events};
 
     use super::*;
-    use std::{fmt::Display, io};
+    use std::io;
 
     pub struct StatefulList<T> {
         pub state: ListState,
@@ -187,10 +187,6 @@ pub mod ui {
                 display_state: DisplayState::SelectServer,
                 config: Config::new(Data::default(), dir_path),
             }
-        }
-
-        pub fn select_default_server(&mut self) {
-            self.set_quiet();
         }
 
         pub fn select_own_server(&mut self) {
