@@ -89,8 +89,9 @@ async fn main() -> Result<()> {
                     .with_context(|| "verification error")?;
                 token::store_token(&token_path, api_conf.oauth_access_token.as_ref().unwrap())?;
             }
-            Err(_) => {
+            Err(e) => {
                 println!("Starting webserver failed. Continuing with manual authentication");
+                dbg!("{}", e);
                 token::request_token(&mut traq_oauth);
                 println!("Enter the URL you were redirected to: ");
                 let mut input = String::new();

@@ -83,28 +83,23 @@ impl<'a> TraqOAuthParam<'a> {
 }
 
 pub fn redirect_uri_web_server(traq_oauth: &mut TraqOAuthParam, port: u16) -> Result<String> {
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port));
+    let addr = format!("127.0.0.1:{}", port);
+    let listener =
+        TcpListener::bind(&addr).with_context(|| format!("cannot bind address {}", addr))?;
 
-    match listener {
-        Ok(listener) => {
-            request_token(traq_oauth);
+    request_token(traq_oauth);
 
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(stream) => {
-                        if let Some(url) = handle_connection(stream) {
-                            return Ok(url);
-                        }
-                    }
-                    Err(e) => {
-                        bail!("{}", e)
-                    }
-                };
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                if let Some(url) = handle_connection(stream) {
+                    return Ok(url);
+                }
             }
-        }
-        Err(e) => {
-            bail!("{}", e)
-        }
+            Err(e) => {
+                bail!("{}", e)
+            }
+        };
     }
 
     bail!("cannot handle")
