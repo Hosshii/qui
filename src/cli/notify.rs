@@ -7,6 +7,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use futures::future;
+use indicatif::ProgressBar;
 use rust_traq::{
     apis::{configuration::Configuration, notification_api},
     models::{ChannelSubscribeLevel, PutChannelSubscribeLevelRequest},
@@ -64,17 +65,20 @@ pub async fn set_subscriptions(
         })
         .collect::<Result<Vec<(String, PutChannelSubscribeLevelRequest)>>>()?;
 
+    let pb = ProgressBar::new(id_levels.len() as u64);
     let mut handles = Vec::with_capacity(id_levels.len());
     for (i, (channel_id, level)) in id_levels.iter().enumerate() {
         let handle =
             notification_api::set_channel_subscribe_level(conf, channel_id, Some(level.clone()));
         handles.push(handle);
+        pb.inc(1);
 
         if i % 5 == 0 {
             time::delay_for(Duration::from_millis(100)).await;
         }
     }
     let res = future::join_all(handles).await;
+    pb.finish();
 
     res.into_iter()
         .try_for_each(|v| v)
