@@ -9,7 +9,6 @@ use rust_traq::apis::configuration::Configuration;
 use std::{env, io, path::PathBuf};
 // use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 // use tui::{backend::TermionBackend, Terminal};
-const TRAQ_CLIENT_ID: &str = "xIwrarN2fZn4ikXBscU8YdA8ZcGGOQD2CczY";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,19 +24,52 @@ async fn main() -> Result<()> {
     // if let Err(e) = app.run() {
     //     eprintln!("{}", e);
     // }
+
+    let mut app = clap_app::clap_app();
+    let matches = app.clone().get_matches();
+
+    // completions
+    if let Some(s) = matches.value_of("completions") {
+        let shell = match s {
+            "fish" => Shell::Fish,
+            "bash" => Shell::Bash,
+            "zsh" => Shell::Zsh,
+            "power-shell" => Shell::PowerShell,
+            "elvish" => Shell::Elvish,
+            _ => bail!("no completions avaible for '{}'", s),
+        };
+        app.gen_completions_to(env!("CARGO_BIN_NAME"), shell, &mut io::stdout());
+        return Ok(());
+    }
+
+    if matches.is_present("set-config") {
+        let config = config::ui::ui(get_conf_path()?)?;
+        config.save()?;
+        token::delete_token(&get_token_path()?)?;
+        return Ok(());
+    }
+
+    if matches.is_present("show-config") {
+        let config = Config::load(get_conf_path()?)?;
+        println!("{:?}", config.data);
+        return Ok(());
+    }
+
     let conf = match Config::load(get_conf_path()?) {
         Ok(c) => c,
         Err(e) => {
             println!("cannot load config. start ui {}", e);
-            config::ui::ui(get_conf_path()?).with_context(|| "cannot set config")?
+            let conf = config::ui::ui(get_conf_path()?).with_context(|| "cannot set config")?;
+            token::delete_token(&get_token_path()?)?;
+            conf
         }
     };
 
     let port = 8080;
-    let client_id = TRAQ_CLIENT_ID;
 
     let mut api_conf = &mut Configuration::default();
-    api_conf.base_path = conf.data.get_server_url().to_owned();
+    api_conf.base_path = conf.data.server_url().to_owned();
+    let client_id = conf.data.client_id();
 
     let mut traq_oauth = TraqOAuthParam::new(&api_conf, &client_id, None);
 
@@ -81,35 +113,6 @@ async fn main() -> Result<()> {
     }
 
     conf.save().with_context(|| "cannot save config")?;
-
-    let mut app = clap_app::clap_app();
-    let matches = app.clone().get_matches();
-
-    // completions
-    if let Some(s) = matches.value_of("completions") {
-        let shell = match s {
-            "fish" => Shell::Fish,
-            "bash" => Shell::Bash,
-            "zsh" => Shell::Zsh,
-            "power-shell" => Shell::PowerShell,
-            "elvish" => Shell::Elvish,
-            _ => bail!("no completions avaible for '{}'", s),
-        };
-        app.gen_completions_to(env!("CARGO_BIN_NAME"), shell, &mut io::stdout());
-        return Ok(());
-    }
-
-    if matches.is_present("set-config") {
-        let config = config::ui::ui(get_conf_path()?)?;
-        config.save()?;
-        return Ok(());
-    }
-
-    if matches.is_present("show-config") {
-        let config = Config::load(get_conf_path()?)?;
-        println!("server url: {}", config.data.get_server_url());
-        return Ok(());
-    }
 
     if let Some(cmd) = matches.subcommand_name() {
         let m = matches.subcommand_matches(cmd).unwrap();

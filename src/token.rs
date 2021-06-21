@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    fs::{DirBuilder, File},
+    fs::{self, DirBuilder, File},
     io::prelude::*,
     net::{TcpListener, TcpStream},
     path::Path,
@@ -248,6 +248,14 @@ pub fn store_token(path: &Path, token: &str) -> Result<()> {
         .with_context(|| "write error")?;
 
     println!("token is stored in {}", display);
+    Ok(())
+}
+
+pub fn delete_token(path: &Path) -> Result<()> {
+    if path.exists() {
+        fs::remove_file(path)
+            .with_context(|| format!("cannot remove token file: {}", path.display()))?;
+    }
     Ok(())
 }
 

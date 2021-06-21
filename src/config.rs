@@ -33,8 +33,12 @@ impl Data {
         self.client_id = client_id.into();
     }
 
-    pub fn get_server_url(&self) -> &str {
+    pub fn server_url(&self) -> &str {
         self.server_url.as_str()
+    }
+
+    pub fn client_id(&self) -> &str {
+        self.client_id.as_str()
     }
 }
 
@@ -225,7 +229,7 @@ pub mod ui {
 
         let data = vec![
             (
-                "use default url (https://q.trap.jp/api/v3)",
+                "use default server (https://q.trap.jp/api/v3)",
                 "https://q.trap.jp/api/v3",
                 "6uT93VLLNjAfEkgX5IOYP4gHdW6p00dfgfPy",
             ),
@@ -238,10 +242,10 @@ pub mod ui {
         ];
         let mut stateful_list = StatefulList::with_items(data);
 
-        let mut input = String::new();
+        let mut input = String::from("https://");
         let mut input_mode = &mut InputMode::Normal;
 
-        let mut client_id = String::new();
+        let mut client_id = String::from("https://");
         let mut config_kind = &mut ConfigKind::ServerUrl;
         loop {
             match app.display_state {
@@ -285,7 +289,7 @@ pub mod ui {
                 })
                 .collect();
             let list = List::new(items)
-                .block(Block::default().title("choose "))
+                .block(Block::default().title("choose server url or set manually"))
                 .highlight_style(Style::default().bg(Color::LightBlue));
             f.render_stateful_widget(list, chunks[0], &mut stateful_list.state)
         })?;
@@ -419,14 +423,14 @@ pub mod ui {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(styles.0)
-                    .title("input server url"),
+                    .title(" input server url "),
             );
 
             let client_id_widget = Paragraph::new(client_id.as_ref()).block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(styles.1)
-                    .title("input client id"),
+                    .title(" input client id "),
             );
 
             let idx = match config_kind {
