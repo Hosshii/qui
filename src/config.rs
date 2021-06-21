@@ -1,7 +1,7 @@
 use std::{
     fs::{DirBuilder, File},
     io::prelude::*,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use anyhow::{Context, Result};
@@ -27,6 +27,10 @@ impl Data {
     pub fn set_server_url(&mut self, url: impl Into<String>) {
         self.server_url = url.into();
     }
+
+    pub fn get_server_url(&self) -> &str {
+        self.server_url.as_str()
+    }
 }
 
 impl Default for Data {
@@ -39,7 +43,7 @@ impl Default for Data {
 
 #[derive(Debug)]
 pub struct Config {
-    data: Data,
+    pub data: Data,
 
     dir_path: PathBuf,
 }
@@ -86,7 +90,7 @@ fn save_file(path: PathBuf, content: &[u8]) -> Result<()> {
 }
 
 pub mod ui {
-    use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
+    use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode};
     use tui::{
         backend::{Backend, TermionBackend},
         layout::{Constraint, Direction, Layout},
@@ -208,13 +212,16 @@ pub mod ui {
         let stdout = MouseTerminal::from(stdout);
         // let stdout = AlternateScreen::from(stdout);
         let backend = TermionBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
-        terminal.clear()?;
+        let terminal = Terminal::new(backend)?;
 
         let events = Events::default();
         let mut app = App::new(terminal, events, dir_path);
+        app.terminal.clear()?;
 
-        let data = vec!["use default url (https://q.trap.jp)", "set url manually"];
+        let data = vec![
+            "use default url (https://q.trap.jp/api/v3)",
+            "set url manually",
+        ];
         let mut stateful_list = StatefulList::with_items(data);
 
         let mut input = String::new();
@@ -226,6 +233,7 @@ pub mod ui {
                 DisplayState::InputUrl => input_url(&mut app, &mut input_mode, &mut input)?,
             }
         }
+        app.terminal.clear()?;
 
         Ok(app.config)
     }
@@ -378,7 +386,10 @@ pub mod ui {
         match input_mode {
             InputMode::Normal => match app.events.next()? {
                 Event::Input(k) => match k {
-                    Key::Char('i') => *input_mode = InputMode::Editing,
+                    Key::Char('i') => {
+                        *input_mode = InputMode::Editing;
+                        app.events.disable_exit_key();
+                    }
                     Key::Char('q') => app.set_quiet(),
                     Key::Char('\n') => app.set_server_url(input.clone()),
                     _ => {}
@@ -388,7 +399,11 @@ pub mod ui {
             },
             InputMode::Editing => match app.events.next()? {
                 Event::Input(k) => match k {
-                    Key::Esc => *input_mode = InputMode::Normal,
+                    Key::Esc => {
+                        *input_mode = InputMode::Normal;
+                        app.events.enable_exit_key();
+                    }
+
                     Key::Char(c) => {
                         input.push(c);
                     }
@@ -398,7 +413,7 @@ pub mod ui {
                     _ => {}
                 },
                 Event::Tick => {}
-                _ => {}
+                Event::Message(_) => {}
             },
         }
         Ok(())
