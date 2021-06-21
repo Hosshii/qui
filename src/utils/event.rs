@@ -26,7 +26,7 @@ pub struct Events {
     input_handle: thread::JoinHandle<()>,
     ignore_exit_key: Arc<AtomicBool>,
     tick_handle: thread::JoinHandle<()>,
-    req_handle: thread::JoinHandle<()>,
+    // req_handle: thread::JoinHandle<()>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,25 +74,25 @@ impl Events {
             })
         };
 
-        let req_handle = {
-            let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-            thread::spawn(move || {
-                for stream in listener.incoming() {
-                    let stream = stream.unwrap();
+        // let req_handle = {
+        //     let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+        //     thread::spawn(move || {
+        //         for stream in listener.incoming() {
+        //             let stream = stream.unwrap();
 
-                    if handle_connection(stream, tx.clone()).is_err() {
-                        break;
-                    }
-                }
-            })
-        };
+        //             if handle_connection(stream, tx.clone()).is_err() {
+        //                 break;
+        //             }
+        //         }
+        //     })
+        // };
 
         Events {
             rx,
             input_handle,
             ignore_exit_key,
             tick_handle,
-            req_handle,
+            // req_handle,
         }
     }
 
