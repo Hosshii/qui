@@ -67,11 +67,12 @@ async fn main() -> Result<()> {
 
     let port = 8080;
 
-    let mut api_conf = &mut Configuration::default();
+    let mut api_conf = Configuration::default();
     api_conf.base_path = conf.data.server_url().to_owned();
-    let client_id = conf.data.client_id();
+    let client_id = conf.data.client_id().to_owned();
 
-    let mut traq_oauth = TraqOAuthParam::new(&api_conf, &client_id, None);
+    let code_verifier = token::generate_random_string(128);
+    let mut traq_oauth = TraqOAuthParam::new(&api_conf, client_id, code_verifier.clone());
 
     let token_path = get_token_path()?;
     let token_path = token_path.as_path();
@@ -82,9 +83,9 @@ async fn main() -> Result<()> {
         }
         None => match token::redirect_uri_web_server(&mut traq_oauth, port) {
             Ok(url) => {
-                let tk = token::get_token(&mut traq_oauth, url).await?;
+                let tk = token::get_token(&mut traq_oauth, url, Some(&code_verifier)).await?;
                 api_conf.oauth_access_token = Some(tk.access_token);
-                token::verify_token(api_conf)
+                token::verify_token(&api_conf)
                     .await
                     .with_context(|| "verification error")?;
                 token::store_token(&token_path, api_conf.oauth_access_token.as_ref().unwrap())?;
@@ -97,9 +98,10 @@ async fn main() -> Result<()> {
                 let mut input = String::new();
                 match io::stdin().read_line(&mut input) {
                     Ok(_) => {
-                        let tk = token::get_token(&mut traq_oauth, input).await?;
+                        let tk =
+                            token::get_token(&mut traq_oauth, input, Some(&code_verifier)).await?;
                         api_conf.oauth_access_token = Some(tk.access_token);
-                        token::verify_token(api_conf)
+                        token::verify_token(&api_conf)
                             .await
                             .with_context(|| "verification error")?;
                         token::store_token(
@@ -117,7 +119,7 @@ async fn main() -> Result<()> {
 
     if let Some(cmd) = matches.subcommand_name() {
         let m = matches.subcommand_matches(cmd).unwrap();
-        handle::handle_matches(api_conf, m, cmd).await?;
+        handle::handle_matches(&api_conf, m, cmd).await?;
     }
 
     Ok(())

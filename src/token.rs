@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use data_encoding::BASE64URL_NOPAD;
+use ring::digest::{self, SHA256};
 use std::{
     fs::{self, DirBuilder, File},
     io::prelude::*,
@@ -19,24 +21,29 @@ use rust_traq::{
 
 pub struct TraqOAuthParam<'a> {
     configuration: &'a configuration::Configuration,
-    client_id: &'a str,
+    client_id: String,
     response_type: Option<OAuth2ResponseType>,
-    redirect_uri: Option<&'a str>,
-    scope: Option<&'a str>,
-    state: Option<&'a str>,
-    code_challenge: Option<&'a str>,
-    code_challenge_method: Option<&'a str>,
-    nonce: Option<&'a str>,
+    redirect_uri: Option<String>,
+    scope: Option<String>,
+    state: Option<String>,
+    code_challenge: Option<String>,
+    code_challenge_method: Option<String>,
+    nonce: Option<String>,
     prompt: Option<OAuth2Prompt>,
 }
 
 impl<'a> TraqOAuthParam<'a> {
     pub fn new(
         configuration: &'a configuration::Configuration,
-        client_id: &'a str,
-        // redirect_uri: Option<&'a str>,
-        state: Option<&'a str>,
+        client_id: String,
+        code_verifier: String,
     ) -> Self {
+        let state = Some(generate_random_string(16));
+        let code_challenge = digest::digest(&SHA256, code_verifier.as_bytes());
+        let code_challenge: String = BASE64URL_NOPAD.encode(code_challenge.as_ref());
+
+        let code_challenge = Some(code_challenge);
+        let code_challenge_method = Some("S256".to_owned());
         Self {
             configuration,
             client_id,
@@ -44,38 +51,38 @@ impl<'a> TraqOAuthParam<'a> {
             redirect_uri: None,
             scope: None,
             state,
-            code_challenge: None,
-            code_challenge_method: None,
+            code_challenge,
+            code_challenge_method,
             nonce: None,
             prompt: None,
         }
     }
 
-    pub fn get_authorize_url(&mut self, state: Option<&str>) -> String {
+    pub fn get_authorize_url(&mut self) -> String {
         let mut url = format!("{}/oauth2/authorize", &self.configuration.base_path);
 
         url += "?response_type=code";
 
         url += &format!("&client_id={}", self.client_id);
-        if let Some(local_var_str) = self.redirect_uri {
+        if let Some(ref local_var_str) = self.redirect_uri {
             url += &format!("&redirect_uri={}", local_var_str);
         }
-        if let Some(local_var_str) = self.scope {
+        if let Some(ref local_var_str) = self.scope {
             url += &format!("&scope={}", local_var_str);
         }
-        if let Some(local_var_str) = state {
+        if let Some(ref local_var_str) = self.state {
             url += &format!("&state={}", local_var_str);
         }
-        if let Some(local_var_str) = self.code_challenge {
+        if let Some(ref local_var_str) = self.code_challenge {
             url += &format!("&code_challenge={}", local_var_str);
         }
-        if let Some(local_var_str) = self.code_challenge_method {
+        if let Some(ref local_var_str) = self.code_challenge_method {
             url += &format!("&code_challenge_method={}", local_var_str);
         }
-        if let Some(local_var_str) = self.nonce {
+        if let Some(ref local_var_str) = self.nonce {
             url += &format!("&nonce={}", local_var_str);
         }
-        if let Some(local_var_str) = self.prompt {
+        if let Some(ref local_var_str) = self.prompt {
             url += &format!("&prompto={}", local_var_str);
         }
         url
@@ -151,8 +158,7 @@ fn respond_with_error(error_message: String, mut stream: TcpStream) {
 }
 
 pub fn request_token(traq_oauth: &mut TraqOAuthParam) {
-    let state = generate_random_string(16);
-    let auth_url = traq_oauth.get_authorize_url(Some(&state));
+    let auth_url = traq_oauth.get_authorize_url();
     match webbrowser::open(&auth_url) {
         Ok(_) => println!("Opened {} in your browser", auth_url),
         Err(why) => eprintln!("Error {:?};Please navigate here [{:?}] ", why, auth_url),
@@ -170,19 +176,20 @@ pub fn generate_random_string(length: usize) -> String {
 pub async fn get_token(
     traq_oauth: &mut TraqOAuthParam<'_>,
     mut url: String,
+    code_verifier: Option<&str>,
 ) -> Result<OAuth2Token> {
     let code = parse_response_code(&mut url).with_context(|| "parse error")?;
 
     let token = oauth2_api::post_o_auth2_token(
-        traq_oauth.configuration,
+        &traq_oauth.configuration,
         "authorization_code",
         Some(&code),
-        traq_oauth.redirect_uri,
-        Some(traq_oauth.client_id),
+        traq_oauth.redirect_uri.as_deref(),
+        Some(traq_oauth.client_id.as_ref()),
+        code_verifier,
         None,
         None,
-        None,
-        traq_oauth.scope,
+        traq_oauth.scope.as_deref(),
         None,
         None,
     )
