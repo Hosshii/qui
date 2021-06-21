@@ -16,14 +16,20 @@ pub fn clap_app() -> App<'static, 'static> {
         .usage("Press `?` while running the app to see keybindings")
         .before_help(BANNER)
         .after_help("after help")
-        .arg(
+        .args(&[
             Arg::with_name("completions")
                 .long("completions")
                 .help("Generates completions for your preferred shell")
                 .takes_value(true)
                 .possible_values(&["bash", "zsh", "fish", "power-shell", "elvish"])
                 .value_name("SHELL"),
-        )
+            Arg::with_name("set-config")
+                .long("set-config")
+                .help("set server url"),
+            Arg::with_name("show-config")
+                .long("show-config")
+                .help("show config"),
+        ])
         .subcommand(channel::channel_subcommand())
         .subcommand(notify::notify_subcommand());
 

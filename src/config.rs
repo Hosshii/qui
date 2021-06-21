@@ -219,8 +219,15 @@ pub mod ui {
         app.terminal.clear()?;
 
         let data = vec![
-            "use default url (https://q.trap.jp/api/v3)",
-            "set url manually",
+            (
+                "use default url (https://q.trap.jp/api/v3)",
+                "https://q.trap.jp/api/v3",
+            ),
+            (
+                "use dev server (https://traq-s-dev.tokyotech.org/api/v3)",
+                "https://traq-s-dev.tokyotech.org/api/v3",
+            ),
+            ("set url manually", ""),
         ];
         let mut stateful_list = StatefulList::with_items(data);
 
@@ -238,10 +245,12 @@ pub mod ui {
         Ok(app.config)
     }
 
-    fn draw_url_list<T, U>(app: &mut App<T>, stateful_list: &mut StatefulList<U>) -> Result<()>
+    fn draw_url_list<T>(
+        app: &mut App<T>,
+        stateful_list: &mut StatefulList<(&str, &str)>,
+    ) -> Result<()>
     where
         T: Backend,
-        U: Display,
     {
         app.terminal.draw(|f| {
             let chunks = Layout::default()
@@ -255,7 +264,7 @@ pub mod ui {
                 .iter()
                 .enumerate()
                 .map(|(idx, i)| {
-                    let sp = Span::from(format!(" {} {}", idx + 1, i));
+                    let sp = Span::from(format!(" {} {}", idx + 1, i.0));
                     ListItem::new(sp).style(Style::default())
                 })
                 .collect();
@@ -269,10 +278,10 @@ pub mod ui {
             Event::Input(key) => match key {
                 Key::Char('q') => app.set_quiet(),
 
-                Key::Char('1') => {
-                    app.select_default_server();
+                Key::Char(x) if x == '1' || x == '2' => {
+                    app.set_server_url(stateful_list.items[(x as u8 - '1' as u8) as usize].1)
                 }
-                Key::Char('2') => {
+                Key::Char('3') => {
                     app.select_own_server();
                 }
                 Key::Down | Key::Char('j') => {
@@ -284,10 +293,10 @@ pub mod ui {
                 Key::Char('\n') => {
                     if let Some(i) = stateful_list.state.selected() {
                         match i {
-                            0 => {
-                                app.select_default_server();
+                            x @ 0..=1 => {
+                                app.set_server_url(stateful_list.items[x].1);
                             }
-                            1 => {
+                            2 => {
                                 app.select_own_server();
                             }
                             x => {
