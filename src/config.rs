@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Data {
     server_url: String,
+    client_id: String,
 }
 
 impl Data {
@@ -28,6 +29,10 @@ impl Data {
         self.server_url = url.into();
     }
 
+    pub fn set_client_id(&mut self, client_id: impl Into<String>) {
+        self.client_id = client_id.into();
+    }
+
     pub fn get_server_url(&self) -> &str {
         self.server_url.as_str()
     }
@@ -37,6 +42,7 @@ impl Default for Data {
     fn default() -> Self {
         Self {
             server_url: "https://traq-s-dev.tokyotech.org/api/v3".to_owned(),
+            client_id: "xIwrarN2fZn4ikXBscU8YdA8ZcGGOQD2CczY".to_owned(),
         }
     }
 }
@@ -195,7 +201,10 @@ pub mod ui {
 
         pub fn set_server_url(&mut self, url: impl Into<String>) {
             self.config.data.set_server_url(url);
-            self.display_state = DisplayState::Quiet;
+        }
+
+        pub fn set_client_id(&mut self, client_id: impl Into<String>) {
+            self.config.data.set_client_id(client_id);
         }
 
         pub fn set_quiet(&mut self) {
@@ -218,22 +227,33 @@ pub mod ui {
             (
                 "use default url (https://q.trap.jp/api/v3)",
                 "https://q.trap.jp/api/v3",
+                "6uT93VLLNjAfEkgX5IOYP4gHdW6p00dfgfPy",
             ),
             (
                 "use dev server (https://traq-s-dev.tokyotech.org/api/v3)",
                 "https://traq-s-dev.tokyotech.org/api/v3",
+                "xIwrarN2fZn4ikXBscU8YdA8ZcGGOQD2CczY",
             ),
-            ("set url manually", ""),
+            ("set manually", "", ""),
         ];
         let mut stateful_list = StatefulList::with_items(data);
 
         let mut input = String::new();
         let mut input_mode = &mut InputMode::Normal;
+
+        let mut client_id = String::new();
+        let mut config_kind = &mut ConfigKind::ServerUrl;
         loop {
             match app.display_state {
                 DisplayState::Quiet => break,
                 DisplayState::SelectServer => draw_url_list(&mut app, &mut stateful_list)?,
-                DisplayState::InputUrl => input_url(&mut app, &mut input_mode, &mut input)?,
+                DisplayState::InputUrl => input_url(
+                    &mut app,
+                    &mut input_mode,
+                    &mut input,
+                    &mut config_kind,
+                    &mut client_id,
+                )?,
             }
         }
         app.terminal.clear()?;
@@ -243,7 +263,7 @@ pub mod ui {
 
     fn draw_url_list<T>(
         app: &mut App<T>,
-        stateful_list: &mut StatefulList<(&str, &str)>,
+        stateful_list: &mut StatefulList<(&str, &str, &str)>,
     ) -> Result<()>
     where
         T: Backend,
@@ -275,7 +295,9 @@ pub mod ui {
                 Key::Char('q') => app.set_quiet(),
 
                 Key::Char(x) if x == '1' || x == '2' => {
-                    app.set_server_url(stateful_list.items[(x as u8 - '1' as u8) as usize].1)
+                    app.set_server_url(stateful_list.items[(x as u8 - '1' as u8) as usize].1);
+                    app.set_client_id(stateful_list.items[(x as u8 - '1' as u8) as usize].2);
+                    app.set_quiet();
                 }
                 Key::Char('3') => {
                     app.select_own_server();
@@ -291,6 +313,8 @@ pub mod ui {
                         match i {
                             x @ 0..=1 => {
                                 app.set_server_url(stateful_list.items[x].1);
+                                app.set_client_id(stateful_list.items[x].2);
+                                app.set_quiet();
                             }
                             2 => {
                                 app.select_own_server();
@@ -322,7 +346,18 @@ pub mod ui {
         Editing,
     }
 
-    fn input_url<T>(app: &mut App<T>, input_mode: &mut InputMode, input: &mut String) -> Result<()>
+    enum ConfigKind {
+        ServerUrl,
+        ClientID,
+    }
+
+    fn input_url<T>(
+        app: &mut App<T>,
+        input_mode: &mut InputMode,
+        server_url: &mut String,
+        config_kind: &mut ConfigKind,
+        client_id: &mut String,
+    ) -> Result<()>
     where
         T: Backend,
     {
@@ -333,7 +368,8 @@ pub mod ui {
                 .constraints(
                     [
                         Constraint::Length(1),
-                        Constraint::Max(5),
+                        Constraint::Length(5),
+                        Constraint::Length(5),
                         Constraint::Max(0),
                     ]
                     .as_ref(),
@@ -368,35 +404,69 @@ pub mod ui {
             let help_message = Paragraph::new(text);
             f.render_widget(help_message, chunks[0]);
 
-            let paragraph = Paragraph::new(input.as_ref()).block(
+            let styles = match config_kind {
+                ConfigKind::ServerUrl => (
+                    Style::default().fg(Color::LightBlue),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                ConfigKind::ClientID => (
+                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(Color::LightBlue),
+                ),
+            };
+
+            let server_url_widget = Paragraph::new(server_url.as_ref()).block(
                 Block::default()
                     .borders(Borders::ALL)
+                    .border_style(styles.0)
                     .title("input server url"),
             );
 
+            let client_id_widget = Paragraph::new(client_id.as_ref()).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(styles.1)
+                    .title("input client id"),
+            );
+
+            let idx = match config_kind {
+                ConfigKind::ServerUrl => (1, server_url.as_str()),
+                ConfigKind::ClientID => (2, client_id.as_str()),
+            };
             match input_mode {
                 InputMode::Normal => {}
                 InputMode::Editing => {
                     f.set_cursor(
-                        chunks[1].x + input.width() as u16 + 1,
+                        chunks[idx.0].x + idx.1.width() as u16 + 1,
                         // Move one line down, from the border to the input line
-                        chunks[1].y + 1,
+                        chunks[idx.0].y + 1,
                     );
                 }
             }
 
-            f.render_widget(paragraph, chunks[1]);
+            f.render_widget(server_url_widget, chunks[1]);
+            f.render_widget(client_id_widget, chunks[2]);
         })?;
 
         match input_mode {
             InputMode::Normal => match app.events.next()? {
                 Event::Input(k) => match k {
+                    Key::Down | Key::Char('j') => {
+                        *config_kind = ConfigKind::ClientID;
+                    }
+                    Key::Up | Key::Char('k') => {
+                        *config_kind = ConfigKind::ServerUrl;
+                    }
                     Key::Char('i') => {
                         *input_mode = InputMode::Editing;
                         app.events.disable_exit_key();
                     }
                     Key::Char('q') => app.set_quiet(),
-                    Key::Char('\n') => app.set_server_url(input.clone()),
+                    Key::Char('\n') => {
+                        app.set_server_url(server_url.clone());
+                        app.set_client_id(client_id.clone());
+                        app.set_quiet();
+                    }
                     _ => {}
                 },
                 Event::Tick => {}
@@ -410,10 +480,18 @@ pub mod ui {
                     }
 
                     Key::Char(c) => {
-                        input.push(c);
+                        let txt = match config_kind {
+                            ConfigKind::ServerUrl => server_url,
+                            ConfigKind::ClientID => client_id,
+                        };
+                        txt.push(c);
                     }
                     Key::Backspace => {
-                        input.pop();
+                        let txt = match config_kind {
+                            ConfigKind::ServerUrl => server_url,
+                            ConfigKind::ClientID => client_id,
+                        };
+                        txt.pop();
                     }
                     _ => {}
                 },
